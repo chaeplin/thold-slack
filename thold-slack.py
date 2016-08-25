@@ -19,27 +19,31 @@ and post the contents to a Slack channel as a rich format 'attachment' message
 '''
 
 # import modules
-import sys
+import os, sys, stat
 import email
 from email import parser, FeedParser
 from email.Iterators import typed_subpart_iterator
 import urllib2,json
 from urllib2 import HTTPError, URLError
 import time
+from twython import Twython, TwythonError
+
+twitter = Twython(APP_KEY, APP_SECRET, OAUTH_TOKEN, OAUTH_TOKEN_SECRET)
+
 
 #### BEGIN GLOBAL VARIABLES ####
 '''
 You need to edit 'slack_webhook_url' with a webhook URL configured at:
 Slack Webhook URL (https://<domain>.slack.com/services/new/incoming-webhook)
 '''
-slack_webhook_url   =   '<your Slack webhook URL goes here>'
+slack_webhook_url   =   'https://hooks.slack.com/services/xxxx/xxxxx/xxxxx'
 
-slack_channel       =   '#random'  # modify this to your liking, ex: #alerts
+slack_channel       =   '#general'  # modify this to your liking, ex: #alerts
 slack_usernmae      =   'Cacti THOLD' # the username reported in channel, modify to your liking
 slack_icon_emoji    =   ':cactus:' # any valid Slack emoji code,  defaults to cactus becasue Cacti
 slack_pretext       =   "" # optional pretext message you want on every message, ex: "Notification from Cacti on server01", left blank by default
 slack_title_link    =   "<edit me to include a hyperlink or set me to "">" #optional, can be blank ex: "https://<your-server>/cacti/plugins/thold/thold_graph.php?sort_column=lastread&sort_direction=DESC"
-slack_image_url     =   ""
+slack_image_url     =   "http://x.x.x.x/data/images/"
 
 # you can use Slack API colors: good, warning, danger or any HEX value
 thold_alert_color    = 'danger'
@@ -55,7 +59,7 @@ alert_baselines      = True
 include_images       = True
 # dir to output image to slack_image_url must map to this in Apache/nginx config
 # run a CORN job to keep it clean  0 7 * * * root find /data/tmp/img -type f -mtime +14 -delete
-image_path           = '/data/tmp/img/'
+image_path           = '/usr/nginx/html/data/images/'
 #### END GLOBAL VARIABLES #####
 
 def main():
@@ -154,6 +158,18 @@ def main():
         print "POST to Slack.com successful"
         # everything is fine
 
+    try:
+         if imgfile == "":
+              twitter.update_status(status=mail['subject'])
+         else:
+              photo = open(image_path + imgfile, 'rb')
+              response = twitter.upload_media(media=photo)
+              twitter.update_status(status=mail['subject'], media_ids=[response['media_id']])
+
+    except TwythonError as e:
+         print e
+
+
 def get_charset(message, default="ascii"):
     """Get the message charset"""
 
@@ -204,9 +220,10 @@ def get_image(message):
 
         if 'image/jpg' in attachment.get_content_type():
             path = image_path
-	    imgfilename = genfile()
+        imgfilename = genfile()
             imgfile = path + imgfilename
             open(imgfile, 'wb').write(attachment.get_payload(decode=True))
+            os.chmod(imgfile, stat.S_IROTH | stat.S_IRUSR) 
         else:
             imgfilename = ''
     except:
