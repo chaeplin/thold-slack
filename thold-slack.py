@@ -209,7 +209,8 @@ def get_body(message):
 def genfile():
     import uuid
     filename = str(uuid.uuid4().hex)
-    filename = filename + '.png'
+    #filename = filename + '.png'
+    filename = filename + '.jpg'
     return filename
 
 def get_image(message):
